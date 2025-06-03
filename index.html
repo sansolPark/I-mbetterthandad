@@ -6,17 +6,29 @@
   <title>Mini Geometry Dash</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
     body { background: #111; overflow: hidden; }
     #gameContainer {
       position: relative;
-      width: 800px;
-      height: 400px;
+      width: 100vw;
+      height: 100vh;
+      max-width: 800px;
+      max-height: 400px;
       margin: 0 auto;
+      touch-action: none;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
     canvas {
+      width: 100vw;
+      height: 100vh;
+      max-width: 800px;
+      max-height: 400px;
       background: #222 url('https://images.unsplash.com/photo-1503264116251-35a269479413?auto=format&fit=crop&w=800&q=80') no-repeat center center;
       background-size: cover;
       display: block;
+      border-radius: 10px;
     }
     #restartBtn {
       display: none;
@@ -30,12 +42,13 @@
       border: none;
       border-radius: 10px;
       cursor: pointer;
+      z-index: 2;
     }
   </style>
 </head>
 <body>
   <div id="gameContainer">
-    <canvas id="game" width="800" height="400"></canvas>
+    <canvas id="game"></canvas>
     <button id="restartBtn">Restart</button>
   </div>
   <audio id="bgm" src="https://cdn.pixabay.com/audio/2022/10/03/audio_4b93a3b1a6.mp3" autoplay loop></audio>
@@ -48,23 +61,29 @@
     const jumpSound = document.getElementById('jumpSound');
     const hitSound = document.getElementById('hitSound');
 
-    let angle = 0;
+    // 기본 비율값
+    const BASE_WIDTH = 800, BASE_HEIGHT = 400;
 
-    const player = {
-      x: 100,
-      y: 300,
-      width: 30,
-      height: 30,
-      dy: 0,
-      gravity: 0.8,
-      jumpPower: -12,
-      doubleJumpPower: -10,
-      bouncePower: -16,
-      superBouncePower: -20,
-      jumpsLeft: 2,
-      color: '#0f0',
-      jumping: false
-    };
+    // 게임 객체 생성 함수 (비율 기반)
+    function createPlayer() {
+      return {
+        x: canvas.width * 0.125,
+        y: canvas.height * 0.75,
+        width: canvas.width * 0.0375,
+        height: canvas.height * 0.075,
+        dy: 0,
+        gravity: canvas.height * 0.002,
+        jumpPower: -canvas.height * 0.03,
+        doubleJumpPower: -canvas.height * 0.025,
+        bouncePower: -canvas.height * 0.04,
+        superBouncePower: -canvas.height * 0.05,
+        jumpsLeft: 2,
+        color: '#0f0',
+        jumping: false
+      };
+    }
+
+    let player = createPlayer();
 
     let obstacles = [];
     let platforms = [];
@@ -75,16 +94,35 @@
     let gameOver = false;
     let speed = 6;
     let score = 0;
+    let angle = 0;
+
+    function resizeCanvas() {
+      let width = window.innerWidth, height = window.innerHeight;
+      if (width / height > BASE_WIDTH / BASE_HEIGHT) {
+        height = Math.min(height, BASE_HEIGHT);
+        width = height * BASE_WIDTH / BASE_HEIGHT;
+      } else {
+        width = Math.min(width, BASE_WIDTH);
+        height = width * BASE_HEIGHT / BASE_WIDTH;
+      }
+      canvas.width = width;
+      canvas.height = height;
+      // 플레이어 및 오브젝트 크기 재계산
+      player = createPlayer();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
 
     function createObstacle() {
-      const height = 40 + Math.random() * 40;
+      const height = canvas.height * (0.1 + Math.random() * 0.1); // 10~20%
       const isSpike = Math.random() < 0.5;
       if (isSpike) {
         spikeObstacles.push({
           x: canvas.width,
-          y: canvas.height - 40,
-          width: 20,
-          height: 40,
+          y: canvas.height - canvas.height * 0.1,
+          width: canvas.width * 0.025,
+          height: canvas.height * 0.1,
           color: '#ff0',
           type: 'spike'
         });
@@ -92,7 +130,7 @@
         obstacles.push({
           x: canvas.width,
           y: canvas.height - height,
-          width: 20,
+          width: canvas.width * 0.025,
           height,
           color: '#f00'
         });
@@ -100,9 +138,9 @@
     }
 
     function createPlatform() {
-      const width = 100;
-      const height = 30;
-      const y = 250 + Math.random() * 100;
+      const width = canvas.width * 0.125;
+      const height = canvas.height * 0.075;
+      const y = canvas.height * (0.625 + Math.random() * 0.25); // 62.5~87.5%
       platforms.push({
         x: canvas.width,
         y,
@@ -113,9 +151,9 @@
     }
 
     function createBluePad() {
-      const width = 60;
-      const height = 10;
-      const y = 280 + Math.random() * 80;
+      const width = canvas.width * 0.075;
+      const height = canvas.height * 0.025;
+      const y = canvas.height * (0.7 + Math.random() * 0.2);
       bluePads.push({
         x: canvas.width,
         y,
@@ -126,9 +164,9 @@
     }
 
     function createRedPad() {
-      const width = 60;
-      const height = 10;
-      const y = 280 + Math.random() * 80;
+      const width = canvas.width * 0.075;
+      const height = canvas.height * 0.025;
+      const y = canvas.height * (0.7 + Math.random() * 0.2);
       redPads.push({
         x: canvas.width,
         y,
@@ -165,8 +203,8 @@
 
     function drawScore() {
       ctx.fillStyle = '#fff';
-      ctx.font = '20px Arial';
-      ctx.fillText(`Score: ${score}`, 10, 30);
+      ctx.font = `${canvas.height * 0.05}px Arial`;
+      ctx.fillText(`Score: ${score}`, 10, canvas.height * 0.08);
     }
 
     function checkCollision(rect1, rect2) {
@@ -283,9 +321,7 @@
     }
 
     function resetGame() {
-      player.y = 300;
-      player.dy = 0;
-      player.jumpsLeft = 2;
+      player = createPlayer();
       obstacles = [];
       platforms = [];
       bluePads = [];
